@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Air Quality Monitor - Web Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        body {
+            background-color: #f5f5f5;
+        }
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .aqi-circle {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            font-size: 48px;
+            font-weight: bold;
+            color: white;
+        }
+        .sensor-card {
+            text-align: center;
+            padding: 20px;
+        }
+        .sensor-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .status-online {
+            background-color: #28a745;
+            color: white;
+        }
+        .status-offline {
+            background-color: #dc3545;
+            color: white;
+        }
+        .alert-banner {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-wind"></i> IoT Air Quality Monitor
+            </span>
+            <span id="deviceStatus" class="status-badge status-offline">Offline</span>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Fire Alert Banner -->
+        <div id="fireAlert" class="alert alert-danger alert-banner" style="display: none;">
+            <i class="fas fa-exclamation-triangle"></i>
+            <strong>FIRE/SMOKE DETECTED!</strong> Take immediate action.
+            <button type="button" class="btn btn-sm btn-light float-end" onclick="acknowledgeFire()">
+                Acknowledge
+            </button>
+        </div>
+
+        <!-- AQI Display -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">Air Quality Index</h5>
+                        <div id="aqiCircle" class="aqi-circle bg-secondary">
+                            0
+                        </div>
+                        <h4 class="mt-3" id="aqiValue">AQI: 0</h4>
+                        <span id="aqiCategory" class="badge bg-secondary">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Air Score</h5>
+                        <div class="progress" style="height: 30px;">
+                            <div id="airScoreBar" class="progress-bar" role="progressbar" style="width: 0%">
+                                0
+                            </div>
+                        </div>
+                        <p class="mt-2">
+                            <strong>Daily Streak:</strong> <span id="dailyStreak">0</span> days
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sensor Readings -->
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card sensor-card">
+                    <i class="fas fa-thermometer-half sensor-icon text-danger"></i>
+                    <h6>Temperature</h6>
+                    <h3 id="temperature">--</h3>
+                    <small>°C</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card sensor-card">
+                    <i class="fas fa-tint sensor-icon text-primary"></i>
+                    <h6>Humidity</h6>
+                    <h3 id="humidity">--</h3>
+                    <small>%</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card sensor-card">
+                    <i class="fas fa-volume-up sensor-icon text-warning"></i>
+                    <h6>Noise</h6>
+                    <h3 id="noise">--</h3>
+                    <small>dB</small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card sensor-card">
+                    <i class="fas fa-cloud sensor-icon text-info"></i>
+                    <h6>PM2.5</h6>
+                    <h3 id="pm25">--</h3>
+                    <small>μg/m³</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Control Panel</h5>
+                        <div class="d-grid gap-2">
+                            <button id="sprinklerBtn" class="btn btn-outline-primary" onclick="toggleSprinkler()">
+                                <i class="fas fa-tint"></i> Water Sprinkler: <span id="sprinklerStatus">OFF</span>
+                            </button>
+                            <button id="buzzerBtn" class="btn btn-outline-danger" onclick="toggleBuzzer()">
+                                <i class="fas fa-bell"></i> Buzzer Alarm: <span id="buzzerStatus">OFF</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Charts</h5>
+                        <canvas id="aqiChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module" src="app.js"></script>
+</body>
+</html>
+
