@@ -29,7 +29,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('IoT Air Quality Monitor'),
+        centerTitle: false,
+        titleSpacing: 0,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/logo.png',
+              height: 45,
+            ),
+            const SizedBox(width: 0),
+            const Text(
+              'Aerosense',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
         actions: [
           Consumer<DeviceProvider>(
             builder: (context, deviceProvider, _) {
@@ -108,6 +125,47 @@ class _DashboardContent extends StatelessWidget {
     return Consumer<DeviceProvider>(
       builder: (context, deviceProvider, _) {
         final deviceData = deviceProvider.deviceData;
+        final settings = Provider.of<SettingsProvider>(context);
+        final userSettings = settings.settings;
+
+        final List<_ThresholdAlert> thresholdAlerts = [];
+        if (deviceData != null) {
+          if (deviceData.aqi > userSettings.aqiThreshold) {
+            thresholdAlerts.add(
+              _ThresholdAlert(
+                title: 'AQI Alert',
+                message:
+                    'Current AQI ${deviceData.aqi.toStringAsFixed(0)} exceeds your threshold of ${userSettings.aqiThreshold.toStringAsFixed(0)}.',
+                color: Colors.red,
+                icon: Icons.air,
+              ),
+            );
+          }
+
+          if (deviceData.pm2_5 > userSettings.smokeThreshold) {
+            thresholdAlerts.add(
+              _ThresholdAlert(
+                title: 'Particle Alert',
+                message:
+                    'PM2.5 level ${deviceData.pm2_5.toStringAsFixed(1)} µg/m³ exceeds your smoke threshold of ${userSettings.smokeThreshold.toStringAsFixed(1)} µg/m³.',
+                color: Colors.deepOrange,
+                icon: Icons.smoke_free,
+              ),
+            );
+          }
+
+          if (deviceData.temperature > userSettings.temperatureThreshold) {
+            thresholdAlerts.add(
+              _ThresholdAlert(
+                title: 'Temperature Alert',
+                message:
+                    'Temperature ${deviceData.temperature.toStringAsFixed(1)}°C exceeds your threshold of ${userSettings.temperatureThreshold.toStringAsFixed(1)}°C.',
+                color: Colors.orange,
+                icon: Icons.thermostat,
+              ),
+            );
+          }
+        }
 
         // Update daily streak if needed
         if (deviceData != null) {
@@ -172,6 +230,9 @@ class _DashboardContent extends StatelessWidget {
                     ),
                   ),
 
+                if (thresholdAlerts.isNotEmpty)
+                  _ThresholdAlertCard(alerts: thresholdAlerts),
+
                 // AQI Indicator and Cities AQI Side by Side
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,14 +266,39 @@ class _DashboardContent extends StatelessWidget {
 
                 const SizedBox(height: 16),
 
-                // Air Quality Goals
+                // Air Quality Goals & Recommendations
                 if (deviceData != null)
-                  AirQualityGoalsWidget(currentAQI: deviceData.aqi),
-
-                const SizedBox(height: 16),
-
-                // Air Quality Recommendations
-                AirQualityRecommendationsWidget(deviceData: deviceData),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isNarrow = constraints.maxWidth < 700;
+                      if (isNarrow) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AirQualityGoalsWidget(currentAQI: deviceData.aqi),
+                            const SizedBox(height: 16),
+                            AirQualityRecommendationsWidget(
+                              deviceData: deviceData,
+                            ),
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: AirQualityGoalsWidget(currentAQI: deviceData.aqi),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: AirQualityRecommendationsWidget(
+                              deviceData: deviceData,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
 
                 const SizedBox(height: 16),
 
@@ -220,7 +306,7 @@ class _DashboardContent extends StatelessWidget {
                 Consumer<SettingsProvider>(
                   builder: (context, settingsProvider, _) {
                     return Card(
-                      color: Colors.blue.withValues(alpha: 0.1),
+                      color: Colors.blue.withOpacity(0.1),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
@@ -362,6 +448,105 @@ class _DashboardContent extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ThresholdAlert {
+  final String title;
+  final String message;
+  final Color color;
+  final IconData icon;
+
+  const _ThresholdAlert({
+    required this.title,
+    required this.message,
+    required this.color,
+    required this.icon,
+  });
+}
+
+class _ThresholdAlertCard extends StatelessWidget {
+  final List<_ThresholdAlert> alerts;
+
+  const _ThresholdAlertCard({required this.alerts});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.red.withOpacity(0.2),
+          width: 1.5,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.warning_amber, color: Colors.red, size: 28),
+                const SizedBox(width: 8),
+                Text(
+                  'Threshold Alerts',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red[700],
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...alerts.map(
+              (alert) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: alert.color.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: alert.color.withOpacity(0.4),
+                    width: 1,
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(alert.icon, color: alert.color),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            alert.title,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: alert.color,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            alert.message,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: Colors.black87,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

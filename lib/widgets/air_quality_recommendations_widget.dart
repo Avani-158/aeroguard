@@ -175,7 +175,7 @@ class AirQualityRecommendationsWidget extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: (rec['color'] as Color).withValues(alpha: 0.15),
+                    color: (rec['color'] as Color).withOpacity(0.15),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
                       color: rec['color'] as Color,

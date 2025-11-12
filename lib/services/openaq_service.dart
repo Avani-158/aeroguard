@@ -2,32 +2,49 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class OpenAQService {
-  // Fetch latest measurements for a city using OpenAQ v3
-  // Returns a map of parameter -> value (e.g., {'pm25': 12.3}) or throws
-  Future<Map<String, double>> fetchLatestForCity(String city) async {
-    final uri = Uri.parse('https://api.openaq.org/v3/latest?city=${Uri.encodeComponent(city)}&limit=1');
-    final resp = await http.get(uri);
+  // Fetch latest measurements for a city using OpenAQ v3 measurements endpoint.
+  // Returns a map of parameter -> value (e.g., {'pm25': 12.3}) or throws.
+  Future<Map<String, double>> fetchLatestForCity(String city, {String? country}) async {
+    // Prefer pm25; fallback to pm10
+    final baseQuery = <String, String>{'city': city, if (country != null) 'country': country};
+    final pm25 = await _fetchLatestMeasurement(parameter: 'pm25', query: baseQuery);
+    final pm10 = pm25 == null ? await _fetchLatestMeasurement(parameter: 'pm10', query: baseQuery) : null;
 
-    if (resp.statusCode != 200) {
-      throw Exception('OpenAQ request failed: ${resp.statusCode}');
-    }
-
-    final data = json.decode(resp.body) as Map<String, dynamic>;
-    if (data['results'] == null || (data['results'] as List).isEmpty) {
-      throw Exception('No results from OpenAQ for $city');
-    }
-
-    final first = (data['results'] as List).first as Map<String, dynamic>;
     final measurements = <String, double>{};
-
-    if (first['measurements'] != null) {
-      for (final m in (first['measurements'] as List)) {
-        final param = (m['parameter'] as String).toLowerCase();
-        final value = (m['value'] as num).toDouble();
-        measurements[param] = value;
-      }
+    if (pm25 != null) measurements['pm25'] = pm25;
+    if (pm10 != null) measurements['pm10'] = pm10;
+    if (measurements.isEmpty) {
+      throw Exception('No measurements from OpenAQ v3 for $city');
     }
+    return measurements;
+  }
 
+  // Fetch latest measurements using coordinates (lat,lon) with a search radius (meters) via v3
+  // Returns a map of parameter -> value (e.g., {'pm25': 12.3}) or throws.
+  Future<Map<String, double>> fetchLatestForCoordinates({
+    required double latitude,
+    required double longitude,
+    int radiusMeters = 15000,
+  }) async {
+    final coords = '${latitude.toStringAsFixed(4)},${longitude.toStringAsFixed(4)}';
+
+    final pm25 = await _fetchLatestMeasurement(parameter: 'pm25', query: {
+      'coordinates': coords,
+      'radius': '$radiusMeters',
+    });
+    final pm10 = pm25 == null
+        ? await _fetchLatestMeasurement(parameter: 'pm10', query: {
+            'coordinates': coords,
+            'radius': '$radiusMeters',
+          })
+        : null;
+
+    final measurements = <String, double>{};
+    if (pm25 != null) measurements['pm25'] = pm25;
+    if (pm10 != null) measurements['pm10'] = pm10;
+    if (measurements.isEmpty) {
+      throw Exception('No measurements from OpenAQ v3 for coordinates ($coords)');
+    }
     return measurements;
   }
 
@@ -58,5 +75,35 @@ class OpenAQService {
     }
 
     return 500; // Extremely high
+  }
+
+  // Internal helper: fetch the most recent single measurement value for a parameter
+  Future<double?> _fetchLatestMeasurement({
+    required String parameter,
+    required Map<String, String> query,
+  }) async {
+    final qp = {
+      ...query,
+      'parameter': parameter,
+      'limit': '1',
+      'page': '1',
+      'sort': 'desc',
+      'order_by': 'datetime',
+    };
+    final uri = Uri.https('api.openaq.org', '/v3/measurements', qp);
+
+    final resp = await http.get(uri);
+    if (resp.statusCode != 200) {
+      return null;
+    }
+    final decoded = json.decode(resp.body);
+    if (decoded is! Map<String, dynamic>) return null;
+    final results = decoded['results'];
+    if (results is! List || results.isEmpty) return null;
+    final first = results.first;
+    if (first is! Map<String, dynamic>) return null;
+    final value = first['value'];
+    if (value is num) return value.toDouble();
+    return null;
   }
 }

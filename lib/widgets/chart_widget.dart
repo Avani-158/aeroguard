@@ -120,7 +120,7 @@ class ChartWidget extends StatelessWidget {
                       dotData: const FlDotData(show: false),
                       belowBarData: BarAreaData(
                         show: true,
-                        color: color.withValues(alpha: 0.2),
+                        color: color.withOpacity(0.2),
                       ),
                     ),
                   ],

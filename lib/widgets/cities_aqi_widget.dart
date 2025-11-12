@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/openaq_service.dart';
+import '../services/waqi_service.dart';
 
 class CitiesAQIWidget extends StatefulWidget {
   const CitiesAQIWidget({super.key});
@@ -10,25 +11,48 @@ class CitiesAQIWidget extends StatefulWidget {
 
 class _CitiesAQIWidgetState extends State<CitiesAQIWidget> {
   final OpenAQService _service = OpenAQService();
+  // Provide your WAQI token here to enable WAQI (more reliable) before OpenAQ
+  final WAQIService _waqi = WAQIService(token: '801fd6f45bf52bd8b6895b79600b98dd5097c6fb');
 
   // Default city list (order preserved)
   final List<String> _cities = [
-    'Delhi',
-    'Mumbai',
-    'Bangalore',
-    'New York',
-    'London',
-    'Tokyo',
+    'Los Angeles',
+    'Beijing',
+    'Paris',
+    'Singapore',
+    'Sydney',
+    'Mexico City',
   ];
+
+  // Coordinates for cities (lat, lon)
+  // Sources: general known city center coordinates
+  final Map<String, List<double>> _cityCoords = const {
+    'Los Angeles': [34.0522, -118.2437],
+    'Beijing': [39.9042, 116.4074],
+    'Paris': [48.8566, 2.3522],
+    'Singapore': [1.3521, 103.8198],
+    'Sydney': [-33.8688, 151.2093],
+    'Mexico City': [19.4326, -99.1332],
+  };
+
+  // Country ISO codes for cities (used to disambiguate v3 queries)
+  final Map<String, String> _cityCountry = const {
+    'Los Angeles': 'US',
+    'Beijing': 'CN',
+    'Paris': 'FR',
+    'Singapore': 'SG',
+    'Sydney': 'AU',
+    'Mexico City': 'MX',
+  };
 
   // Fallback/mock map
   static const Map<String, int> _mockAQI = {
-    'Delhi': 156,
-    'Mumbai': 82,
-    'Bangalore': 65,
-    'New York': 45,
-    'London': 38,
-    'Tokyo': 52,
+    'Los Angeles': 72,
+    'Beijing': 165,
+    'Paris': 40,
+    'Singapore': 55,
+    'Sydney': 35,
+    'Mexico City': 98,
   };
 
   Map<String, int> _aqis = {};
@@ -52,17 +76,45 @@ class _CitiesAQIWidgetState extends State<CitiesAQIWidget> {
     try {
       for (final city in _cities) {
         try {
-          final measurements = await _service.fetchLatestForCity(city);
+          Map<String, double> measurements = {};
+
+          // 0) Try WAQI first if token provided (returns AQI directly)
+          if (_waqi.isEnabled) {
+            try {
+              final aqi = await _waqi.fetchAqiForCity(city);
+              results[city] = aqi;
+              continue; // move to next city
+            } catch (_) {
+              // fall through to OpenAQ flows
+            }
+          }
+
+          // 1) Try coordinates (most reliable) with a wider radius
+          final coords = _cityCoords[city];
+          if (coords != null) {
+            measurements = await _service.fetchLatestForCoordinates(
+              latitude: coords[0],
+              longitude: coords[1],
+              radiusMeters: 30000,
+            );
+          }
+
+          // 2) If empty, fallback to city query
+          if (measurements.isEmpty) {
+            final country = _cityCountry[city];
+            measurements = await _service.fetchLatestForCity(city, country: country);
+          }
+
           // prefer pm25, fallback to pm10 if pm25 not present
-          double? pm25 = measurements['pm25'];
+          final double? pm25 = measurements['pm25'];
+          final double? pm10 = measurements['pm10'];
+
           if (pm25 != null) {
             results[city] = _service.pm25ToAqi(pm25);
-          } else if (measurements['pm10'] != null) {
-            // Approximate AQI using pm10 -> pm2.5 ratio fallback is not ideal;
-            // here we simply use pm10 directly with pm25ToAqi (coarse).
-            results[city] = _service.pm25ToAqi(measurements['pm10']!);
+          } else if (pm10 != null) {
+            // Using pm10 with the pm2.5 AQI curve is approximate but gives a coarse indicator
+            results[city] = _service.pm25ToAqi(pm10);
           } else {
-            // No data, fallback to mock
             results[city] = _mockAQI[city] ?? 0;
           }
         } catch (_) {

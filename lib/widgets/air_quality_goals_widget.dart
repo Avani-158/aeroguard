@@ -148,7 +148,7 @@ class _AirQualityGoalsWidgetState extends State<AirQualityGoalsWidget> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: goalColor.withValues(alpha: 0.1),
+                color: goalColor.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: goalColor, width: 1),
               ),
@@ -222,7 +222,7 @@ class _AirQualityGoalsWidgetState extends State<AirQualityGoalsWidget> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: Colors.blue.withValues(alpha: 0.1),
+                color: Colors.blue.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(

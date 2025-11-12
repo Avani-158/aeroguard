@@ -98,8 +98,8 @@ class _HealthTipsWidgetState extends State<HealthTipsWidget> {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              currentTip['color'].withValues(alpha: 0.1),
-              currentTip['color'].withValues(alpha: 0.05),
+              currentTip['color'].withOpacity(0.1),
+              currentTip['color'].withOpacity(0.05),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,

@@ -25,7 +25,7 @@ class ControlButton extends StatelessWidget {
 
     return Card(
       elevation: isActive ? 4 : 1,
-      color: isActive ? active.withValues(alpha: 0.1) : null,
+      color: isActive ? active.withOpacity(0.1) : null,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),

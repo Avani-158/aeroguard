@@ -53,38 +53,42 @@ class QuickActionsWidget extends StatelessWidget {
                       icon: Icons.refresh,
                       label: 'Refresh Data',
                       color: Colors.blue,
-                      onTap: () {
-                        // Refresh logic would go here
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Refreshing data...')),
-                        );
+                      onTap: () async {
+                        // Placeholder: add refresh logic if needed
+                        try {
+                          // no-op
+                        } catch (_) {}
                       },
                     ),
                     _QuickActionButton(
                       icon: deviceData?.sprinkler == 'on' ? Icons.water_drop : Icons.water_drop_outlined,
                       label: deviceData?.sprinkler == 'on' ? 'Sprinkler ON' : 'Sprinkler OFF',
                       color: deviceData?.sprinkler == 'on' ? Colors.blue : Colors.grey,
-                      onTap: () {
-                        deviceProvider.toggleSprinkler();
+                      onTap: () async {
+                        try {
+                          await deviceProvider.toggleSprinkler();
+                        } catch (_) {}
                       },
                     ),
                     _QuickActionButton(
                       icon: deviceData?.buzzer == 'on' ? Icons.volume_up : Icons.volume_off,
                       label: deviceData?.buzzer == 'on' ? 'Buzzer ON' : 'Buzzer OFF',
                       color: deviceData?.buzzer == 'on' ? Colors.orange : Colors.grey,
-                      onTap: () {
-                        deviceProvider.toggleBuzzer();
+                      onTap: () async {
+                        try {
+                          await deviceProvider.toggleBuzzer();
+                        } catch (_) {}
                       },
                     ),
                     _QuickActionButton(
                       icon: Icons.history,
                       label: 'View History',
                       color: Colors.purple,
-                      onTap: () {
-                        // Navigate to history screen
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('History feature coming soon!')),
-                        );
+                      onTap: () async {
+                        // Placeholder: hook up navigation when screen exists
+                        try {
+                          // no-op
+                        } catch (_) {}
                       },
                     ),
                   ],
@@ -113,16 +117,15 @@ class _QuickActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
+          color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: color.withValues(alpha: 0.3),
+            color: color.withOpacity(0.3),
             width: 1,
           ),
         ),
