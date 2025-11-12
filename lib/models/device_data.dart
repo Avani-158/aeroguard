@@ -90,7 +90,7 @@ class DeviceData {
 
   Color get aqiColor {
     if (aqi <= 50) return Colors.green;
-    if (aqi <= 100) return Colors.yellow;
+  if (aqi <= 100) return const Color(0xFF26A69A);
     if (aqi <= 150) return Colors.orange;
     if (aqi <= 200) return Colors.red;
     if (aqi <= 300) return Colors.purple;

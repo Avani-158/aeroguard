@@ -8,6 +8,7 @@ class UserSettings {
   final bool darkMode;
   final int dailyStreak;
   final DateTime lastGoodAirDate;
+  final int? targetAQI;
 
   UserSettings({
     this.aqiThreshold = 100,
@@ -19,6 +20,7 @@ class UserSettings {
     this.darkMode = false,
     this.dailyStreak = 0,
     DateTime? lastGoodAirDate,
+    this.targetAQI = 50,
   }) : lastGoodAirDate = lastGoodAirDate ?? DateTime.now();
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
@@ -34,6 +36,7 @@ class UserSettings {
       lastGoodAirDate: json['lastGoodAirDate'] != null
           ? DateTime.parse(json['lastGoodAirDate'])
           : DateTime.now(),
+      targetAQI: json['targetAQI'] ?? 50,
     );
   }
 
@@ -48,6 +51,7 @@ class UserSettings {
       'darkMode': darkMode,
       'dailyStreak': dailyStreak,
       'lastGoodAirDate': lastGoodAirDate.toIso8601String(),
+      'targetAQI': targetAQI,
     };
   }
 
@@ -61,6 +65,7 @@ class UserSettings {
     bool? darkMode,
     int? dailyStreak,
     DateTime? lastGoodAirDate,
+    int? targetAQI,
   }) {
     return UserSettings(
       aqiThreshold: aqiThreshold ?? this.aqiThreshold,
@@ -72,6 +77,7 @@ class UserSettings {
       darkMode: darkMode ?? this.darkMode,
       dailyStreak: dailyStreak ?? this.dailyStreak,
       lastGoodAirDate: lastGoodAirDate ?? this.lastGoodAirDate,
+      targetAQI: targetAQI ?? this.targetAQI,
     );
   }
 }

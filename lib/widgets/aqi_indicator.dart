@@ -24,6 +24,13 @@ class AQIIndicator extends StatelessWidget {
 
     return Card(
       elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.orange,
+          width: 2,
+        ),
+      ),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -60,7 +67,7 @@ class AQIIndicator extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
-            
+
             // AQI Value
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -79,7 +86,7 @@ class AQIIndicator extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            
+
             // Category
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

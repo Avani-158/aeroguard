@@ -5,6 +5,12 @@ import '../providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/aqi_indicator.dart';
 import '../widgets/sensor_card.dart';
+import '../widgets/weather_widget.dart';
+import '../widgets/health_tips_widget.dart';
+import '../widgets/quick_actions_widget.dart';
+import '../widgets/cities_aqi_widget.dart';
+import '../widgets/air_quality_recommendations_widget.dart';
+import '../widgets/air_quality_goals_widget.dart';
 import 'control_panel_screen.dart';
 import 'charts_screen.dart';
 import 'settings_screen.dart';
@@ -166,8 +172,47 @@ class _DashboardContent extends StatelessWidget {
                     ),
                   ),
 
-                // AQI Indicator
-                AQIIndicator(deviceData: deviceData),
+                // AQI Indicator and Cities AQI Side by Side
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: AQIIndicator(deviceData: deviceData),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: const CitiesAQIWidget(),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Weather Widget
+                if (deviceData != null)
+                  WeatherWidget(
+                    temperature: deviceData.temperature,
+                    humidity: deviceData.humidity,
+                    weatherCondition: deviceData.temperature > 25 ? 'Sunny' :
+                                    deviceData.temperature > 20 ? 'Cloudy' : 'Cool',
+                  ),
+
+                const SizedBox(height: 16),
+
+                // Health Tips
+                if (deviceData != null)
+                  HealthTipsWidget(aqi: deviceData.aqi.toInt()),
+
+                const SizedBox(height: 16),
+
+                // Air Quality Goals
+                if (deviceData != null)
+                  AirQualityGoalsWidget(currentAQI: deviceData.aqi),
+
+                const SizedBox(height: 16),
+
+                // Air Quality Recommendations
+                AirQualityRecommendationsWidget(deviceData: deviceData),
 
                 const SizedBox(height: 16),
 
@@ -176,6 +221,13 @@ class _DashboardContent extends StatelessWidget {
                   builder: (context, settingsProvider, _) {
                     return Card(
                       color: Colors.blue.withValues(alpha: 0.1),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(
+                          color: Colors.blue,
+                          width: 2,
+                        ),
+                      ),
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Row(
@@ -209,6 +261,11 @@ class _DashboardContent extends StatelessWidget {
                     );
                   },
                 ),
+
+                const SizedBox(height: 16),
+
+                // Quick Actions (moved below Daily Streak)
+                const QuickActionsWidget(),
 
                 const SizedBox(height: 16),
 

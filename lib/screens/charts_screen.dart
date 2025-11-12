@@ -13,16 +13,44 @@ class ChartsScreen extends StatefulWidget {
 
 class _ChartsScreenState extends State<ChartsScreen> {
   int _selectedHours = 24;
-  bool _isLoading = false;
+  late Future<List<DeviceData>> _historicalDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    // Schedule data loading after the first frame to avoid build phase issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeData();
+    });
+  }
+
+  void _initializeData() {
+    // Safe to access provider here after build is complete
+    if (!mounted) return;
+    
+    try {
+      final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
+      setState(() {
+        _historicalDataFuture = deviceProvider.getHistoricalData(hours: _selectedHours);
+      });
+    } catch (e) {
+      print('Error initializing chart data: $e');
+    }
+  }
+
+  void _loadHistoricalData() {
+    setState(() {
+      final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
+      _historicalDataFuture = deviceProvider.getHistoricalData(hours: _selectedHours);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<DeviceProvider>(
       builder: (context, deviceProvider, _) {
         return FutureBuilder<List<DeviceData>>(
-          future: _isLoading
-              ? deviceProvider.getHistoricalData(hours: _selectedHours)
-              : null,
+          future: _historicalDataFuture,
           builder: (context, snapshot) {
             List<DeviceData> historicalData = [];
             if (snapshot.hasData) {
@@ -58,7 +86,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                                     if (selected) {
                                       setState(() {
                                         _selectedHours = 6;
-                                        _isLoading = true;
+                                        _loadHistoricalData();
                                       });
                                     }
                                   },
@@ -73,7 +101,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                                     if (selected) {
                                       setState(() {
                                         _selectedHours = 24;
-                                        _isLoading = true;
+                                        _loadHistoricalData();
                                       });
                                     }
                                   },
@@ -88,7 +116,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                                     if (selected) {
                                       setState(() {
                                         _selectedHours = 168;
-                                        _isLoading = true;
+                                        _loadHistoricalData();
                                       });
                                     }
                                   },
@@ -101,12 +129,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               onPressed: () {
-                                setState(() {
-                                  _isLoading = true;
-                                });
+                                _loadHistoricalData();
                               },
                               icon: const Icon(Icons.refresh),
-                              label: const Text('Load Data'),
+                              label: const Text('Refresh Data'),
                             ),
                           ),
                         ],
@@ -117,14 +143,14 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   const SizedBox(height: 16),
 
                   // Charts
-                  if (_isLoading && !snapshot.hasData)
+                  if (snapshot.connectionState == ConnectionState.waiting)
                     const Center(
                       child: Padding(
                         padding: EdgeInsets.all(32.0),
                         child: CircularProgressIndicator(),
                       ),
                     )
-                  else if (historicalData.isEmpty && snapshot.hasData)
+                  else if (historicalData.isEmpty)
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(24.0),

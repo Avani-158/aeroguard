@@ -22,10 +22,11 @@ class SettingsProvider with ChangeNotifier {
       // Try to load from SharedPreferences first
       final prefs = await SharedPreferences.getInstance();
       final savedDarkMode = prefs.getBool('darkMode') ?? false;
+      final savedTargetAQI = prefs.getInt('targetAQI') ?? 50;
 
       // Load from Firebase if user is logged in
       // This would require AuthProvider, so we'll use SharedPreferences for now
-      _settings = UserSettings(darkMode: savedDarkMode);
+      _settings = UserSettings(darkMode: savedDarkMode, targetAQI: savedTargetAQI);
     } catch (e) {
       // Use default settings
       _settings = UserSettings();
@@ -113,5 +114,17 @@ class SettingsProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-}
+
+  Future<void> updateTargetAQI(int targetAQI) async {
+    _settings = _settings.copyWith(targetAQI: targetAQI);
+    notifyListeners();
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('targetAQI', targetAQI);
+    } catch (e) {
+      // Handle error
+    }
+  }
+  }
 

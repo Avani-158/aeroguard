@@ -3,7 +3,20 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  late GoogleSignIn _googleSignIn;
+
+  AuthService() {
+    // Defer GoogleSignIn initialization to avoid errors on web without OAuth config
+    _initializeGoogleSignIn();
+  }
+
+  void _initializeGoogleSignIn() {
+    try {
+      _googleSignIn = GoogleSignIn();
+    } catch (e) {
+      print('GoogleSignIn initialization error: $e');
+    }
+  }
 
   // Get current user
   User? get currentUser => _auth.currentUser;
@@ -46,18 +59,24 @@ class AuthService {
   // Sign in with Google
   Future<UserCredential?> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return null;
+      try {
+        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) return null;
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
 
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
 
-      return await _auth.signInWithCredential(credential);
+        return await _auth.signInWithCredential(credential);
+      } catch (e) {
+        // If Google Sign-In is not configured on web, fall back to email/password or show error
+        print('Google Sign-In error (may not be configured on web): $e');
+        throw 'Google Sign-In is not configured. Please use email/password login instead.';
+      }
     } catch (e) {
       throw 'Failed to sign in with Google: $e';
     }
@@ -65,10 +84,16 @@ class AuthService {
 
   // Sign out
   Future<void> signOut() async {
-    await Future.wait([
-      _auth.signOut(),
-      _googleSignIn.signOut(),
-    ]);
+    try {
+      await Future.wait([
+        _auth.signOut(),
+        _googleSignIn.signOut().catchError((_) {
+          // Google Sign-In may not be configured
+        }),
+      ]);
+    } catch (e) {
+      print('Sign out error: $e');
+    }
   }
 
   // Reset password

@@ -92,6 +92,14 @@ class MyApp extends StatelessWidget {
                 seedColor: Colors.blue,
                 brightness: Brightness.light,
               ),
+              // Slightly darker, cool-toned background to better contrast
+              // with yellow/accent elements and white cards.
+              scaffoldBackgroundColor: const Color(0xFFF0F4F8),
+              appBarTheme: const AppBarTheme(
+                backgroundColor: Color(0xFFE6EEF6),
+                foregroundColor: Colors.black,
+                elevation: 1,
+              ),
               useMaterial3: true,
             ),
             darkTheme: ThemeData(
