@@ -25,18 +25,24 @@ class UserSettings {
 
   factory UserSettings.fromJson(Map<String, dynamic> json) {
     return UserSettings(
-      aqiThreshold: (json['aqiThreshold'] ?? 100).toDouble(),
-      smokeThreshold: (json['smokeThreshold'] ?? 50).toDouble(),
-      temperatureThreshold: (json['temperatureThreshold'] ?? 35).toDouble(),
+      aqiThreshold: json['aqiThreshold'] is num
+          ? (json['aqiThreshold'] as num).toDouble()
+          : 100,
+      smokeThreshold: json['smokeThreshold'] is num
+          ? (json['smokeThreshold'] as num).toDouble()
+          : 50,
+      temperatureThreshold: json['temperatureThreshold'] is num
+          ? (json['temperatureThreshold'] as num).toDouble()
+          : 35,
       fireBrigadeContact: json['fireBrigadeContact'] ?? '',
       ownerContact: json['ownerContact'] ?? '',
       ownerEmail: json['ownerEmail'] ?? '',
       darkMode: json['darkMode'] ?? false,
-      dailyStreak: json['dailyStreak'] ?? 0,
+      dailyStreak: (json['dailyStreak'] as num?)?.toInt() ?? 0,
       lastGoodAirDate: json['lastGoodAirDate'] != null
           ? DateTime.parse(json['lastGoodAirDate'])
           : DateTime.now(),
-      targetAQI: json['targetAQI'] ?? 50,
+      targetAQI: (json['targetAQI'] as num?)?.toInt() ?? 50,
     );
   }
 

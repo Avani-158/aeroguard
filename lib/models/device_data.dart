@@ -32,6 +32,49 @@ class DeviceData {
   });
 
   factory DeviceData.fromJson(Map<String, dynamic> json, String deviceId) {
+    DateTime timestamp;
+    if (json['timestamp'] != null) {
+      if (json['timestamp'] is String) {
+        // Handle ISO string format
+        try {
+          timestamp = DateTime.parse(json['timestamp']);
+        } catch (e) {
+          print('❌ Failed to parse timestamp string: ${json['timestamp']}');
+          timestamp = DateTime.now();
+        }
+      } else if (json['timestamp'] is int) {
+        // Handle Unix timestamp (seconds since epoch)
+        // Check if it's a reasonable timestamp (not too large)
+        if (json['timestamp'] > 1000000000 && json['timestamp'] < 2000000000) {
+          // It's seconds since epoch
+          timestamp = DateTime.fromMillisecondsSinceEpoch(json['timestamp'] * 1000);
+        } else if (json['timestamp'] > 1000000000000 && json['timestamp'] < 2000000000000) {
+          // It's milliseconds since epoch
+          timestamp = DateTime.fromMillisecondsSinceEpoch(json['timestamp']);
+        } else {
+          print('❌ Invalid timestamp value: ${json['timestamp']}');
+          timestamp = DateTime.now();
+        }
+      } else if (json['timestamp'] is double) {
+        // Handle Unix timestamp as double
+        if (json['timestamp'] > 1000000000 && json['timestamp'] < 2000000000) {
+          // It's seconds since epoch
+          timestamp = DateTime.fromMillisecondsSinceEpoch((json['timestamp'] * 1000).toInt());
+        } else if (json['timestamp'] > 1000000000000 && json['timestamp'] < 2000000000000) {
+          // It's milliseconds since epoch
+          timestamp = DateTime.fromMillisecondsSinceEpoch(json['timestamp'].toInt());
+        } else {
+          print('❌ Invalid timestamp value: ${json['timestamp']}');
+          timestamp = DateTime.now();
+        }
+      } else {
+        print('❌ Unknown timestamp type: ${json['timestamp'].runtimeType}');
+        timestamp = DateTime.now();
+      }
+    } else {
+      timestamp = DateTime.now();
+    }
+
     return DeviceData(
       deviceId: deviceId,
       aqi: (json['aqi'] ?? 0).toDouble(),
@@ -44,9 +87,7 @@ class DeviceData {
       fire: json['fire'] ?? false,
       sprinkler: json['sprinkler'] ?? 'off',
       buzzer: json['buzzer'] ?? 'off',
-      timestamp: json['timestamp'] != null
-          ? DateTime.parse(json['timestamp'])
-          : DateTime.now(),
+      timestamp: timestamp,
       online: json['online'] ?? false,
     );
   }
@@ -96,5 +137,37 @@ class DeviceData {
     if (aqi <= 300) return Colors.purple;
     return Colors.deepPurple;
   }
+
+    DeviceData copyWith({
+    double? aqi,
+    double? temperature,
+    double? humidity,
+    double? pm2_5,
+    double? pm10,
+    double? noise,
+    bool? smoke,
+    bool? fire,
+    String? sprinkler,
+    String? buzzer,
+    DateTime? timestamp,
+    bool? online,
+  }) {
+    return DeviceData(
+      deviceId: deviceId,
+      aqi: aqi ?? this.aqi,
+      temperature: temperature ?? this.temperature,
+      humidity: humidity ?? this.humidity,
+      pm2_5: pm2_5 ?? this.pm2_5,
+      pm10: pm10 ?? this.pm10,
+      noise: noise ?? this.noise,
+      smoke: smoke ?? this.smoke,
+      fire: fire ?? this.fire,
+      sprinkler: sprinkler ?? this.sprinkler,
+      buzzer: buzzer ?? this.buzzer,
+      timestamp: timestamp ?? this.timestamp,
+      online: online ?? this.online,
+    );
+  }
+
 }
 

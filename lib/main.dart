@@ -79,8 +79,22 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
-        ChangeNotifierProvider(create: (_) => DeviceProvider()),
-        ChangeNotifierProvider(create: (_) => SettingsProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, DeviceProvider>(
+          create: (_) => DeviceProvider(),
+          update: (_, authProvider, deviceProvider) {
+            deviceProvider ??= DeviceProvider();
+            deviceProvider.updateUserId(authProvider.user?.uid);
+            return deviceProvider;
+          },
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, SettingsProvider>(
+          create: (_) => SettingsProvider(),
+          update: (_, authProvider, settingsProvider) {
+            settingsProvider ??= SettingsProvider();
+            settingsProvider.updateUserId(authProvider.user?.uid);
+            return settingsProvider;
+          },
+        ),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settingsProvider, _) {

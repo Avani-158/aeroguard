@@ -13,55 +13,90 @@ class FirebaseService {
   final String _deviceId = 'ESP32_001'; // Default device ID
   bool _useMock = false;
 
+  bool get isMockMode => _useMock;
+
   FirebaseService() {
     try {
       // Attempt to get a database reference. On web this will throw if
       // databaseURL is missing or invalid, so catch and enable mock mode.
       _database = FirebaseDatabase.instance.ref();
+      _useMock = false; // Force real mode if database is available
+      print('✅ Firebase Database initialized successfully');
     } catch (e) {
       _useMock = true;
-      print('Realtime Database unavailable, using mock data: $e');
+      print('❌ Realtime Database unavailable, using mock data: $e');
     }
   }
 
-  // Get device data stream (real DB or mock)
-  Stream<DeviceData?> getDeviceDataStream() {
-    if (_useMock) {
-      final rnd = Random();
-      return Stream<DeviceData?>.periodic(const Duration(seconds: 2), (_) {
-        final now = DateTime.now();
-        return DeviceData(
-          deviceId: _deviceId,
-          aqi: 30 + rnd.nextDouble() * 100,
-          temperature: 20 + rnd.nextDouble() * 10,
-          humidity: 40 + rnd.nextDouble() * 30,
-          pm2_5: rnd.nextDouble() * 50,
-          pm10: rnd.nextDouble() * 60,
-          noise: 30 + rnd.nextDouble() * 40,
-          smoke: false,
-          fire: false,
-          sprinkler: 'off',
-          buzzer: 'off',
-          timestamp: now,
-          online: true,
-        );
-      }).asBroadcastStream();
-    }
+  // Add method to check if Firebase is properly configured
+  bool get isFirebaseConfigured => _database != null && !_useMock;
 
-    return _database!
-        .child('devices')
-        .child(_deviceId)
-        .onValue
-        .map((event) {
-      if (event.snapshot.value == null) return null;
+Stream<DeviceData?> getDeviceDataStream({required String userId}) {
+  print('🔍 getDeviceDataStream called for userId: $userId');
+  print('📊 Using mock mode: $_useMock');
 
-      final data = Map<String, dynamic>.from(
-        event.snapshot.value as Map<dynamic, dynamic>,
+  if (_useMock) {
+    print('🔄 Using mock data mode');
+    final rnd = Random();
+    return Stream<DeviceData?>.periodic(const Duration(seconds: 2), (_) {
+      final now = DateTime.now();
+      return DeviceData(
+        deviceId: _deviceId,
+        aqi: 30 + rnd.nextDouble() * 100,
+        temperature: 20 + rnd.nextDouble() * 10,
+        humidity: 40 + rnd.nextDouble() * 30,
+        pm2_5: rnd.nextDouble() * 50,
+        pm10: rnd.nextDouble() * 60,
+        noise: 30 + rnd.nextDouble() * 40,
+        smoke: false,
+        fire: false,
+        sprinkler: 'off',
+        buzzer: 'off',
+        timestamp: now,
+        online: true,
       );
-
-      return DeviceData.fromJson(data, _deviceId);
-    });
+    }).asBroadcastStream();
   }
+
+  // ✅ Read from devices → ESP32_001 instead of users
+  const deviceId = 'ESP32_001';
+  print('📡 Listening to Firebase path: devices/$deviceId');
+
+  return _database!.child('devices').child(deviceId).onValue.map((event) {
+    print('📨 Firebase event received');
+
+    if (event.snapshot.value == null) {
+      print('⚠️ No data found for $deviceId - snapshot is null');
+      return null;
+    }
+
+    print('📦 Raw data from Firebase: ${event.snapshot.value}');
+
+    final data = Map<String, dynamic>.from(
+      event.snapshot.value as Map<dynamic, dynamic>,
+    );
+
+    final deviceData = DeviceData.fromJson(data, deviceId);
+
+    // Log ESP32 data to console
+    print('📡 ESP32 Data Received:');
+    print('  - AQI: ${deviceData.aqi.toStringAsFixed(1)}');
+    print('  - Temperature: ${deviceData.temperature.toStringAsFixed(1)}°C');
+    print('  - Humidity: ${deviceData.humidity.toStringAsFixed(1)}%');
+    print('  - PM2.5: ${deviceData.pm2_5.toStringAsFixed(1)} µg/m³');
+    print('  - PM10: ${deviceData.pm10.toStringAsFixed(1)} µg/m³');
+    print('  - Noise: ${deviceData.noise.toStringAsFixed(1)} dB');
+    print('  - Smoke: ${deviceData.smoke}');
+    print('  - Fire: ${deviceData.fire}');
+    print('  - Sprinkler: ${deviceData.sprinkler}');
+    print('  - Buzzer: ${deviceData.buzzer}');
+    print('  - Online: ${deviceData.online}');
+    print('  - Timestamp: ${deviceData.timestamp}');
+    print('✅ DeviceData object created successfully');
+
+    return deviceData;
+  });
+}
 
   // Update sprinkler status
   Future<void> updateSprinkler(String status) async {
@@ -111,54 +146,60 @@ class FirebaseService {
   }
 
   // Get historical data for charts
-  Future<List<DeviceData>> getHistoricalData({int hours = 24}) async {
-    if (_useMock) {
-      // Return generated historical data
-      return _generateMockHistoricalData(hours);
-    }
-
-    try {
-      final snapshot = await _database!
-          .child('devices')
-          .child(_deviceId)
-          .child('history')
-          .get();
-
-      if (snapshot.value == null) {
-        // If no data in database, return mock data
-        return _generateMockHistoricalData(hours);
-      }
-
-      final data = Map<String, dynamic>.from(
-        snapshot.value as Map<dynamic, dynamic>,
-      );
-
-      final cutoffTime = DateTime.now().subtract(Duration(hours: hours));
-      final List<DeviceData> history = [];
-
-      data.forEach((key, value) {
-        final deviceData = DeviceData.fromJson(
-          Map<String, dynamic>.from(value),
-          _deviceId,
-        );
-        if (deviceData.timestamp.isAfter(cutoffTime)) {
-          history.add(deviceData);
-        }
-      });
-
-      history.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-      
-      // If no data found after filtering, return mock data
-      if (history.isEmpty) {
-        return _generateMockHistoricalData(hours);
-      }
-      
-      return history;
-    } catch (e) {
-      // On error, return mock data
-      return _generateMockHistoricalData(hours);
-    }
+  // Get historical data for charts (per-user)
+Future<List<DeviceData>> getHistoricalData({
+  required String userId,
+  int hours = 24,
+}) async {
+  if (_useMock) {
+    // Return generated mock data
+    return _generateMockHistoricalData(hours);
   }
+
+  try {
+    final snapshot = await _database!
+        .child('users')
+        .child(userId)
+        .child('aqHistory')
+        .get();
+
+    if (snapshot.value == null) {
+      print('No AQ history for $userId, using mock data.');
+      return _generateMockHistoricalData(hours);
+    }
+
+    final data = Map<String, dynamic>.from(
+      snapshot.value as Map<dynamic, dynamic>,
+    );
+
+    // final cutoffTime = DateTime.now().subtract(Duration(hours: hours));
+    final List<DeviceData> history = [];
+
+    data.forEach((key, value) {
+      final record = Map<String, dynamic>.from(value);
+      final deviceData = DeviceData.fromJson(record, _deviceId);
+
+      // Filter by time window
+   
+        history.add(deviceData);
+      
+    });
+
+    history.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
+    // Show mock data if user history is empty
+    if (history.isEmpty) {
+      print('No recent AQ data found for $userId, showing mock history.');
+      return _generateMockHistoricalData(hours);
+    }
+
+    return history;
+  } catch (e) {
+    print('Error loading user AQ history: $e');
+    return _generateMockHistoricalData(hours);
+  }
+}
+
 
   // Generate mock historical data with realistic trends
   List<DeviceData> _generateMockHistoricalData(int hours) {
@@ -209,6 +250,57 @@ class FirebaseService {
         .child(userId)
         .child('settings')
         .set(settings);
+  }
+
+  Future<void> saveUserDailyProgress(
+    String userId, {
+    required int dailyStreak,
+    required DateTime lastGoodAirDate,
+  }) async {
+    if (_useMock) {
+      print(
+        'Mock saveUserDailyProgress for $userId: streak=$dailyStreak, lastGoodAirDate=$lastGoodAirDate',
+      );
+      return;
+    }
+
+    await _database!
+        .child('users')
+        .child(userId)
+        .child('progress')
+        .set({
+      'dailyStreak': dailyStreak,
+      'lastGoodAirDate': lastGoodAirDate.toIso8601String(),
+      'updatedAt': DateTime.now().toIso8601String(),
+    });
+  }
+
+  Future<void> saveUserAqSample(String userId, DeviceData data) async {
+    if (_useMock) {
+      print('Mock saveUserAqSample for $userId: ${data.aqi.toStringAsFixed(1)}');
+      return;
+    }
+
+    final sampleRef = _database!
+        .child('users')
+        .child(userId)
+        .child('aqHistory')
+        .push();
+
+    await sampleRef.set({
+      ...data.toJson(),
+      'recordedAt': DateTime.now().toIso8601String(),
+    });
+
+    // Also keep a rolling "latest" snapshot for quick reads
+    await _database!
+        .child('users')
+        .child(userId)
+        .child('latestAqData')
+        .set({
+      ...data.toJson(),
+      'recordedAt': DateTime.now().toIso8601String(),
+    });
   }
 
   // Get user settings

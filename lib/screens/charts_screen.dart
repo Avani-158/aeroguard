@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
-import '../widgets/chart_widget.dart';
 import '../models/device_data.dart';
+import '../widgets/chart_widget.dart';
 
 class ChartsScreen extends StatefulWidget {
   const ChartsScreen({super.key});
@@ -18,20 +18,19 @@ class _ChartsScreenState extends State<ChartsScreen> {
   @override
   void initState() {
     super.initState();
-    // Schedule data loading after the first frame to avoid build phase issues
+    _historicalDataFuture = Future.value([]); // Initialize with empty list
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
     });
   }
 
   void _initializeData() {
-    // Safe to access provider here after build is complete
     if (!mounted) return;
-    
     try {
       final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
       setState(() {
-        _historicalDataFuture = deviceProvider.getHistoricalData(hours: _selectedHours);
+        _historicalDataFuture =
+            deviceProvider.getHistoricalData(hours: _selectedHours);
       });
     } catch (e) {
       print('Error initializing chart data: $e');
@@ -41,7 +40,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
   void _loadHistoricalData() {
     setState(() {
       final deviceProvider = Provider.of<DeviceProvider>(context, listen: false);
-      _historicalDataFuture = deviceProvider.getHistoricalData(hours: _selectedHours);
+      _historicalDataFuture =
+          deviceProvider.getHistoricalData(hours: _selectedHours);
     });
   }
 
@@ -53,6 +53,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
           future: _historicalDataFuture,
           builder: (context, snapshot) {
             List<DeviceData> historicalData = [];
+            bool isMockMode = deviceProvider.firebaseService.isMockMode;
+
             if (snapshot.hasData) {
               historicalData = snapshot.data!;
             }
@@ -62,7 +64,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Time Range Selector
+                  // ---------------- Time Range Selector ----------------
                   Card(
                     child: Padding(
                       padding: const EdgeInsets.all(16.0),
@@ -71,9 +73,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
                         children: [
                           Text(
                             'Time Range',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                ),
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 12),
                           Row(
@@ -128,9 +131,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: () {
-                                _loadHistoricalData();
-                              },
+                              onPressed: _loadHistoricalData,
                               icon: const Icon(Icons.refresh),
                               label: const Text('Refresh Data'),
                             ),
@@ -139,10 +140,9 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       ),
                     ),
                   ),
-
                   const SizedBox(height: 16),
 
-                  // Charts
+                  // ---------------- Chart Display Logic ----------------
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const Center(
                       child: Padding(
@@ -156,15 +156,19 @@ class _ChartsScreenState extends State<ChartsScreen> {
                         padding: const EdgeInsets.all(24.0),
                         child: Center(
                           child: Text(
-                            'No historical data available',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: Colors.grey,
-                                ),
+                            isMockMode
+                                ? 'Showing mock data (no Firebase connection)'
+                                : 'No historical data available yet — your AQI samples will appear here once you start monitoring.',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: Colors.grey),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ),
                     )
-                  else if (historicalData.isNotEmpty) ...[
+                  else ...[
                     ChartWidget(
                       data: historicalData,
                       title: 'Air Quality Index (AQI)',
@@ -212,31 +216,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       unit: 'μg/m³',
                       color: Colors.teal,
                     ),
-                  ] else
-                    Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24.0),
-                        child: Center(
-                          child: Column(
-                            children: [
-                              Icon(
-                                Icons.show_chart,
-                                size: 64,
-                                color: Colors.grey[400],
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                'Select time range and load data',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyLarge
-                                    ?.copyWith(color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+                  ],
                 ],
               ),
             );
@@ -246,4 +226,3 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 }
-
